@@ -26,5 +26,5 @@ def didHitPlanet(ptCoord, planetCoord, planetR):
     else:
         return False
 
-def timeStep(B):
+#def timeStep(B):
     
