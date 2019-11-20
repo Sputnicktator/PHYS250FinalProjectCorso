@@ -4,27 +4,18 @@
 
 # Import matplotlib library for plotting
 import matplotlib
-matplotlib.use('Agg') # this is a hack to keep matplotlib
-                      # non-interactive/keep python from complaining
-                      # if you're using an ssh connection
 import matplotlib.pyplot as pyplot
 
 # Import numpy for numerical calculations, vectors, etc.
 import numpy as np
 from numpy.linalg import norm as norm
 
-# Global constants
-C      = 2.998e8        # Speed of light [m/s]
-MASS_E = 9.10938e-31    # Mass of electron [kg]
-q      = 1.60217657e-19 # Charge of electron [coulombs]
+import stepcalculations as stepcalc
 
 # simulation domain parameters
 BOX_X = 2
 BOX_Y = 1
 BOX_Z = 1
-
-# timestep
-dt = 1e-10
 
 def plot_trajectory(trajectories, masses):
     """Creates a matplotlib plot and plots a list of trajectories labeled
@@ -68,7 +59,7 @@ def plot_trajectory(trajectories, masses):
 
     return None
 
-def update_pos(position, velocity, mass, B):
+def update_pos(position, velocity, particle, B, timeStep):
     """calculates the magnetic force on the particle and moves it
     accordingly
 
@@ -85,17 +76,17 @@ def update_pos(position, velocity, mass, B):
     # calculate the total force and accelerations on each body using
     # numpy's vector cross product
     field = [0, 0, B]
-    force = q*np.cross(velocity, field)
+    force = particle.charge * np.cross(velocity, field)
     
-    accel = force/mass
+    accel = force/particle.mass
 
     # update the positions and velocity
-    position += velocity*dt + .5*accel*dt**2
-    velocity += accel*dt
+    position += velocity*timeStep + .5*accel*timeStep**2
+    velocity += accel*timeStep
 
     return position, velocity
 
-def calculate_trajectory(position, velocity, mass, B):
+def calculate_trajectory(position, velocity, particle, B):
     """Calculates the trajectory of the particle 
 
     .. seealso: called by :func:`calculate_trajectory`
@@ -115,7 +106,7 @@ def calculate_trajectory(position, velocity, mass, B):
 
     # While the particle is inside the wall, update its position
     while position[1] < BOX_Y:
-        position, velocity = update_pos(position, velocity, mass, B)
+        position, velocity = update_pos(position, velocity, particle, B)
         trajectory.append(np.array(position))
 
     return np.array(trajectory)
@@ -123,7 +114,7 @@ def calculate_trajectory(position, velocity, mass, B):
 # main is the function that gets called when we run the program.
 # Loops over multiples of electron mass, calculates trajectories, and
 # plots them.
-def main():
+def trajTest():
     """ Loops over particles with integer multiples of the mass of the
     electron and shoots them through the magnetic field """
 
@@ -159,6 +150,6 @@ def main():
 # This is Python syntax which tells Python to call the function we
 # created, called 'main()', only if this file was run directly, rather
 # than with 'import orbital'
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
 

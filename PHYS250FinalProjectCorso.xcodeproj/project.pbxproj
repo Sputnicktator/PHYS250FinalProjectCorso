@@ -19,8 +19,8 @@
 			children = (
 				734FAB7F2384ACFA00034F2D /* electronTrajectory.py */,
 				738C5B7C237E79AD00C6793E /* main.py */,
-				738C5B79237E703600C6793E /* particlegenerator.py */,
 				738C5B7A237E78F400C6793E /* stepcalculations.py */,
+				738C5B79237E703600C6793E /* particlegenerator.py */,
 			);
 			sourceTree = "<group>";
 		};
