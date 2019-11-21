@@ -1,7 +1,7 @@
 import numpy as np
 from main import C
 
-def windParticleGenerator(eneDist, minEne, maxEne, minPos, maxPos):
+def windParticleGenerator(eneDist, minEne, maxEne, posRanges):
     '''
     Energy in eV.
     '''
@@ -14,7 +14,9 @@ def windParticleGenerator(eneDist, minEne, maxEne, minPos, maxPos):
         probTest = np.random.uniform()
         if probTest < probability:
             break
-    position = np.random.uniform(minPos,maxPos)
+    position = []
+    for range in posRanges:
+        position.append(np.random.uniform(range[0],range[1]))
     return energy, position
 
 def velocityFromEnergy(energy, mass):

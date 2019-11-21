@@ -1,4 +1,6 @@
 import numpy as np
+from main import TIME_CONST
+from main import TIME_BOUND
 
 def distance(pt2Coord, pt1Coord):
     x = pt2Coord[0]-pt1Coord[0]
@@ -25,8 +27,13 @@ def didHitPlanet(ptCoord, planetCoord, planetR):
     else:
         return False
 
-def timeStep(B, mu):
-    time = TIME_CONST / magnitude(B)
-    if time < TIME_CONST / (2 * mu):
-        time = TIME_CONST / (2 * mu)
-    return time
+def timeStep(B, mu, ptCoord, magCoord):
+    r = distance(ptCoord, magCoord)[0]
+    if r <= TIME_BOUND:
+        time = TIME_CONST * r
+        if time < TIME_CONST:
+            time = TIME_CONST
+        return time
+    else:
+        time = TIME_CONST * TIME_BOUND
+        return time

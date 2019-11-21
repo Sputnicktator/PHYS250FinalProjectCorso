@@ -1,5 +1,6 @@
 C = 2.998e8 #m/s
-TIME_CONST = 1000 #s T
+TIME_CONST = 0.0001 #s / m
+TIME_BOUND = 3.3895e6 #m
 import numpy as np
 import matplotlib.pyplot as plt
 import particlegenerator as partgen
@@ -32,10 +33,10 @@ E = Particle("Electron", 9.10938e-31, -1.60218e-19) #kg, C
 P = Particle("Proton", 1.6726219e-27, 1.60218e-19) #kg, C
 A = Particle("Alpha", 6.64465723e-27, 3.20436e-19) #kg, C
 MARS = Planet("Mars", 3.3895e6, 2.279e11) #m, m
+SUN = Planet("Sun", 6.9551e8, 0) #m, m
 
 def testFunctions():
     print(stepcalc.didHitPlanet([1,1,1],[0,0,0],1))
-    #plt = pyplot.figure(figsize=(15, 10), dpi=80, facecolor='w')
     fig, (ax1, ax2, ax3) = plt.subplots(ncols = 3)
     fig.suptitle("Preliminary Results")
     x = np.arange(-1, 1, 0.05)
@@ -69,7 +70,28 @@ def testFunctions():
     plt.show()
 
 def basicSim():
-    simDim = np.array([MARS.semimaxis / 80, MARS.rad * 100, MARS.rad * 100])
+    halfSimDim = np.array([MARS.semimaxis / 40, MARS.rad * 10, MARS.rad * 10])
+    MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
+    magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
+    def distribution(t):
+        return 1
+    minEnergy = 500
+    maxEnergy = 10000
+    posRanges = []
+    posRanges.append([-MARS.rad,MARS.rad])
+    posRanges.append([-MARS.rad,MARS.rad])
+    mu = 100000000000
+    trajectories = []
+    for i in range(10):
+        energy, position = partgen.windParticleGenerator(distribution, minEnergy, maxEnergy, posRanges)
+        partPosition = np.array([-halfSimDim[0] + 1, position[0], position[1]])
+        velocity = np.array([partgen.velocityFromEnergy(energy, P.mass), 0, 0])
+        trajectory, hitPlanet = etraj.calculate_trajectory(partPosition, velocity, P, magnetPos, mu, MARS, halfSimDim)
+        trajectories.append(np.array(trajectory))
+    trajectories = np.array(trajectories)
+    print(trajectories)
+    etraj.plot_trajectory(trajectories, halfSimDim)
+        
 
 if __name__ == "__main__":
     basicSim()

@@ -5,6 +5,7 @@
 # Import matplotlib library for plotting
 import matplotlib
 import matplotlib.pyplot as pyplot
+from mpl_toolkits.mplot3d import Axes3D
 
 # Import numpy for numerical calculations, vectors, etc.
 import numpy as np
@@ -13,11 +14,11 @@ from numpy.linalg import norm as norm
 import stepcalculations as stepcalc
 
 # simulation domain parameters
-BOX_X = 2
-BOX_Y = 1
-BOX_Z = 1
+#BOX_X = 2
+#BOX_Y = 1
+#BOX_Z = 1
 
-def plot_trajectory(trajectories, masses):
+def plot_trajectory(trajectories, dim):
     """Creates a matplotlib plot and plots a list of trajectories labeled
     by a list of masses.
     
@@ -30,31 +31,34 @@ def plot_trajectory(trajectories, masses):
     """
 
     # settings for plotting
-    print "Plotting."
+    print("Plotting.")
     IMAGE_PATH = "trajectory.png"
 
     # create a plot
-    plt = pyplot.figure(figsize=(15, 10), dpi=80, facecolor='w')
-    ax = pyplot.axes()
+    plt = pyplot.figure(facecolor = 'w')
+    ax = plt.add_subplot(111, projection = '3d')
 
     # set the title and axis labels
     ax.set_xlabel("X [meters]") 
     ax.set_ylabel("Y [meters]")
+    ax.set_zlabel("Z [meters]")
     ax.set_title("Electron Trajectories")
 
     # for each trajectory in our array of trajectories, add a plot
     for i in range(len(trajectories)):
         trajectory = trajectories[i]
-        ax.plot(trajectory[:,0], trajectory[:,1], "-", 
-                alpha=.7, linewidth=3, label="M = %.2e kg" % masses[i])
+        ax.plot(trajectory[:,0], trajectory[:,1], trajectory[:,2], "-", 
+                alpha=.7, linewidth=3)
         
     # Define the plot limits
-    pyplot.xlim(0, BOX_X)
-    pyplot.ylim(.4*BOX_Y, BOX_Y)
+    pyplot.xlim(-dim[0], dim[0])
+    pyplot.ylim(-dim[1], dim[1])
+    ax.set_zlim(-dim[2], dim[2])
 
     # Draw a legend and save our plot
-    print "Saving plot to %s." % IMAGE_PATH
-    ax.legend(loc="lower right", fancybox=True, shadow=True)
+    pyplot.show()
+    print("Saving plot to %s." % IMAGE_PATH)
+    #ax.legend(loc="lower right", fancybox=True, shadow=True)
     plt.savefig(IMAGE_PATH, bbox_inches='tight')
 
     return None
@@ -75,7 +79,7 @@ def update_pos(position, velocity, particle, B, timeStep):
 
     # calculate the total force and accelerations on each body using
     # numpy's vector cross product
-    field = [0, 0, B]
+    field = B
     force = particle.charge * np.cross(velocity, field)
     
     accel = force/particle.mass
@@ -86,7 +90,7 @@ def update_pos(position, velocity, particle, B, timeStep):
 
     return position, velocity
 
-def calculate_trajectory(position, velocity, particle, B):
+def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, dim):
     """Calculates the trajectory of the particle 
 
     .. seealso: called by :func:`calculate_trajectory`
@@ -99,17 +103,21 @@ def calculate_trajectory(position, velocity, particle, B):
 
     """
 
-    print "Calculating trajectory: %.2e kg" % mass
+    #print("Calculating trajectory: %.2e kg" % mass)
 
     # Start a list to append the positions to as we move the particle
     trajectory = [np.array(position)]
-
+    hitPlanet = False
     # While the particle is inside the wall, update its position
-    while position[1] < BOX_Y:
-        position, velocity = update_pos(position, velocity, particle, B)
+    while -dim[0] < position[0] and position[0] < dim[0] and -dim[1] < position[1] and position[1] < dim[1] and -dim[2] < position[2] and position[2] < dim[2]:
+        B = stepcalc.magneticFieldAtPoint(magnetPos, position, mu)
+        position, velocity = update_pos(position, velocity, particle, B, stepcalc.timeStep(B, mu, position, magnetPos))
         trajectory.append(np.array(position))
+        if stepcalc.didHitPlanet(position, planet.pos, planet.rad):
+            hitPlanet = True
+            break
 
-    return np.array(trajectory)
+    return np.array(trajectory), hitPlanet
 
 # main is the function that gets called when we run the program.
 # Loops over multiples of electron mass, calculates trajectories, and
@@ -118,7 +126,7 @@ def trajTest():
     """ Loops over particles with integer multiples of the mass of the
     electron and shoots them through the magnetic field """
 
-    print "Starting calculation."
+    print("Starting calculation.")
 
     # Magnetic field strength [Telsa]
     B = -1.0e-3 
