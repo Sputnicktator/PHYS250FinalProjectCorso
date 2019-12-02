@@ -119,19 +119,25 @@ def strengthTest(nParticles, nTests, particle, planet):
             trajectories, totHitPlanet = simulation(mu[m],nParticles,particle,planet)
             hitRatio[n,m] = totHitPlanet / nParticles
     hitError = stats.sem(hitRatio,axis=0)
+    print(hitError)
     hitRatio = np.average(hitRatio,axis=0)
+    print(hitRatio)
     np.savez(os.path.join(sys.path[0], "strengthData.npz"), mu=mu, hitRatio=hitRatio, hitError=hitError)
 
-def strengthPlot(file):
+def strengthPlot(file, fitting = True):
     mu = file['mu']
     hitRatio = file['hitRatio']
     hitError = file['hitError']
     x = np.linspace(mu[0],mu[-1],num=int(mu[-1]/mu[0]),endpoint=True)
+    plt.rcParams.update({'font.size': 22})
     fit = interp1d(mu, hitRatio, kind='slinear')
     fig = plt.figure(facecolor = 'w')
     ax = fig.add_subplot(111)
-    ax.errorbar(mu,hitRatio,yerr=hitError,marker = 'o',linestyle = 'None',color = 'indigo', label = 'Data')
-    ax.plot(x,fit(x),color = 'fuchsia', label = 'Fit')
+    if fitting:
+        ax.errorbar(mu,hitRatio,yerr=hitError,marker = 'o',linestyle = 'None',color = 'indigo', label = 'Data')
+        ax.plot(x,fit(x),color = 'fuchsia', label = 'Fit')
+    else:
+        ax.errorbar(mu,hitRatio,yerr=hitError,marker = 'o',color = 'indigo', label = 'Data')
     ax.set_xscale('log')
     ax.set_title("Inefficiency of Dipole Shield")
     ax.set_xlabel("Magnetic Moment (" + r'$\frac{\mu_{0}}{4\pi}$' + ")")
@@ -140,6 +146,6 @@ def strengthPlot(file):
     plt.show()
 
 if __name__ == "__main__":
-    strengthTest(50, 5, P, MARS)
-    file = np.load("strengthData.npz")
+    #strengthTest(3, 2, P, MARS)
+    file = np.load(os.path.join(sys.path[0], "strengthData1.npz"))
     strengthPlot(file)
