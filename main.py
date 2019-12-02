@@ -1,7 +1,8 @@
 C = 2.998e8 #m/s
-TIME_CONST = 0.0001 #s / m
-TIME_BOUND = 3.3895e6 #m
+TIME_CONST = 0.00001 #s T
+TIME_BOUND = 1e-5 #T
 import numpy as np
+MU_0 = np.pi * 4e-7 #H/m
 import matplotlib.pyplot as plt
 import particlegenerator as partgen
 import stepcalculations as stepcalc
@@ -36,26 +37,27 @@ MARS = Planet("Mars", 3.3895e6, 2.279e11) #m, m
 SUN = Planet("Sun", 6.9551e8, 0) #m, m
 
 def testFunctions():
-    print(stepcalc.didHitPlanet([1,1,1],[0,0,0],1))
     fig, (ax1, ax2, ax3) = plt.subplots(ncols = 3)
     fig.suptitle("Preliminary Results")
-    x = np.arange(-1, 1, 0.05)
-    z = np.arange(-1, 1, 0.05)
-    xx, zz = np.meshgrid(x, z)
-    B = np.empty((x.size,z.size,3))
-    for i in range(x.size):
+    y = np.arange(-30000000, 30000000, 300000)
+    z = np.arange(-30000000, 30000000, 300000)
+    yy, zz = np.meshgrid(y, z)
+    B = np.empty((y.size,z.size,3))
+    for i in range(y.size):
         for j in range(z.size):
-            pt = np.array([xx[i,j],0,zz[i,j]])
-            B[i,j] = stepcalc.magneticFieldAtPoint(np.array([0,0,0]), pt, 10)
-    B[int(x.size/2),int(z.size/2)] = np.array([0,0,0])
-    ax1.quiver(xx,zz,B[:,:,0],B[:,:,2],scale=1000, scale_units='inches')
+            pt = np.array([0,yy[i,j],zz[i,j]])
+            B[i,j] = stepcalc.magneticFieldAtPoint(np.array([0,0,0]), pt, 1e14)
+            #B[i,j] -= np.array([2e-9,0,0])
+    B[int(y.size/2),int(z.size/2)] = np.array([0,0,0])
+    ax1.quiver(yy,zz,B[:,:,1],B[:,:,2])#,scale = 5e3, scale_units = 'x')
     ax1.set_title("Magnetic Field Lines from Dipole Cross Section")
-    ax1.set_xlabel("x (m)")
+    ax1.set_xlabel("y (m)")
     ax1.set_ylabel("z (m)")
-    
+    '''
     def f(x):
         sigma = 200
         return 1/(sigma * np.sqrt(2*np.pi)) * np.exp(-((x-1000) ** 2)/(2 * sigma ** 2)) + 1/(sigma * np.sqrt(2*np.pi)) * np.exp(-((x-9000) ** 2)/(2 * sigma ** 2))
+    
     energies = np.array([])
     for i in range(1000):
         energies = np.append(energies, partgen.windParticleGenerator(f, 500, 10000, -1, 1)[0])
@@ -67,30 +69,44 @@ def testFunctions():
     ax3.hist(particlegenerator.velocityFromEnergy(energies, MASS_E), bins = 200, density = True)
     ax3.set_title("Initial Velocity Spread of Generated Particles")
     ax3.set_xlabel("V (m/s)")
+    '''
     plt.show()
 
 def basicSim():
-    halfSimDim = np.array([MARS.semimaxis / 40, MARS.rad * 10, MARS.rad * 10])
+    nParticles = 10
+    particle = P
+    halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
     MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
     magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
     def distribution(t):
         return 1
     minEnergy = 500
-    maxEnergy = 10000
+    maxEnergy = 100000000
     posRanges = []
     posRanges.append([-MARS.rad,MARS.rad])
     posRanges.append([-MARS.rad,MARS.rad])
-    mu = 100000000000
+    #posRanges.append([-halfSimDim[1],halfSimDim[1]])
+    #posRanges.append([-halfSimDim[2],halfSimDim[2]])
+    mu = 4e7
+    nDensity = 4 * 10000
+    density = particle.mass * nDensity
     trajectories = []
-    for i in range(10):
+    for i in range(nParticles):
         energy, position = partgen.windParticleGenerator(distribution, minEnergy, maxEnergy, posRanges)
+        positionEnd = partgen.windParticleGenerator(distribution, minEnergy, maxEnergy, posRanges)[1]
         partPosition = np.array([-halfSimDim[0] + 1, position[0], position[1]])
-        velocity = np.array([partgen.velocityFromEnergy(energy, P.mass), 0, 0])
-        trajectory, hitPlanet = etraj.calculate_trajectory(partPosition, velocity, P, magnetPos, mu, MARS, halfSimDim)
+        partPositionEnd = np.array([MARS.pos[0],positionEnd[0],positionEnd[1]])
+        #partPosition = np.array([position[0], -halfSimDim[1] + 1, position[1]]) + magnetPos
+        #partPositionEnd = np.array([positionEnd[0],MARS.pos[1],positionEnd[1]]) + magnetPos
+        velocityDir = stepcalc.unit(partPositionEnd - partPosition)
+        velocity = 750000. * velocityDir
+        #velocity = partgen.velocityFromEnergy(energy, particle.mass) * velocityDir
+        #velocity = 750000. * np.array([1,0,0])
+        trajectory, hitPlanet = etraj.calculate_trajectory(partPosition, velocity, particle, magnetPos, mu, MARS, halfSimDim, density)
         trajectories.append(np.array(trajectory))
+        print("Done")
     trajectories = np.array(trajectories)
-    print(trajectories)
-    etraj.plot_trajectory(trajectories, halfSimDim)
+    etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos)
         
 
 if __name__ == "__main__":

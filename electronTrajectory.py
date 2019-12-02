@@ -11,14 +11,16 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from numpy.linalg import norm as norm
 
+from main import MU_0
 import stepcalculations as stepcalc
+import particlegenerator as partgen
 
 # simulation domain parameters
 #BOX_X = 2
 #BOX_Y = 1
 #BOX_Z = 1
 
-def plot_trajectory(trajectories, dim):
+def plot_trajectory(trajectories, dim, planet, magnetPos):
     """Creates a matplotlib plot and plots a list of trajectories labeled
     by a list of masses.
     
@@ -47,8 +49,17 @@ def plot_trajectory(trajectories, dim):
     # for each trajectory in our array of trajectories, add a plot
     for i in range(len(trajectories)):
         trajectory = trajectories[i]
-        ax.plot(trajectory[:,0], trajectory[:,1], trajectory[:,2], "-", 
+        ax.plot(trajectory[:,0], trajectory[:,1], trajectory[:,2], "-",
                 alpha=.7, linewidth=3)
+    
+    r = planet.rad
+    u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+    x = r*np.cos(u)*np.sin(v) + planet.pos[0]
+    y = r*np.sin(u)*np.sin(v) + planet.pos[1]
+    z = r*np.cos(v) + planet.pos[2]
+    ax.plot_wireframe(x, y, z, color="r")
+    
+    ax.scatter(magnetPos[0], magnetPos[1], magnetPos[2], color="g", s=100)
         
     # Define the plot limits
     pyplot.xlim(-dim[0], dim[0])
@@ -63,7 +74,7 @@ def plot_trajectory(trajectories, dim):
 
     return None
 
-def update_pos(position, velocity, particle, B, timeStep):
+def update_pos(position, velocity, paraVelocity, particle, B, timeStep):
     """calculates the magnetic force on the particle and moves it
     accordingly
 
@@ -79,18 +90,102 @@ def update_pos(position, velocity, particle, B, timeStep):
 
     # calculate the total force and accelerations on each body using
     # numpy's vector cross product
-    field = B
-    force = particle.charge * np.cross(velocity, field)
+    #print(timeStep)
+    #print("Beat:")
+    #force = particle.charge * np.cross(velocity, B)
     
-    accel = force/particle.mass
-
-    # update the positions and velocity
-    position += velocity*timeStep + .5*accel*timeStep**2
-    velocity += accel*timeStep
-
+    #accel = force/particle.mass
+    #print(accel)
+    #position += velocity * timeStep
+    energyLoss = stepcalc.synchrotron(particle, velocity, B) * timeStep
+    #print(energyLoss)
+    #print(velocity)
+    paraVelocity = np.dot(velocity,stepcalc.unit(B))
+    #if paraVelocity == 0:
+        #paraVelocity += 100000 * np.random.randint(0,2) - 50000
+    perpVelocity = np.sqrt(np.linalg.norm(velocity)**2 - paraVelocity**2)
+    #print(paraVelocity)
+    #print(perpVelocity)
+    radCurv = particle.mass * perpVelocity / (particle.charge * np.linalg.norm(B))
+    #print(radCurv)
+    angVelocity = perpVelocity / radCurv
+    angPosition = angVelocity * timeStep
+    delPosXB = (np.sin(angPosition)) * radCurv
+    delPosYB = np.sign(particle.charge) * (np.cos(angPosition) - 1) * radCurv
+    delPosZB = paraVelocity * timeStep
+    delVeloXB = np.cos(angPosition) * perpVelocity
+    delVeloYB = -np.sign(particle.charge) * (np.sin(angPosition)) * perpVelocity
+    delPosB = np.array([[delPosXB],[delPosYB],[delPosZB]])
+    veloB = np.array([[delVeloXB],[delVeloYB],[paraVelocity]])
+    #print(delVeloB)
+    xBBasis = stepcalc.unit(velocity - paraVelocity * stepcalc.unit(B))
+    zBBasis = stepcalc.unit(B)
+    yBBasis = -np.cross(xBBasis,zBBasis)
+    bBasis = np.stack([xBBasis,yBBasis,zBBasis]).T
+    #print(bBasis)
+    #print(delPosB)
+    delPos = np.dot(bBasis,delPosB).reshape((3,))
+    #print(delPos)
+    velocity = np.dot(bBasis,veloB).reshape((3,))
+    #print(delVelo)
+    position += delPos
+    #print(delPos)
+    #print(delPos)
+    #velocity = delVelo
+    velocity -= partgen.velocityFromEnergy(energyLoss, particle.mass) * (velocity)/np.linalg.norm(velocity)
+    #print("Velocity:")
+    #print(velocity)
+    
+    # FIX BY KEEPING VELOCITY AS PERP VS PARALLEL, RATHER THAN CONVERTING TO CARTESIAN, SO THAT YOU DON'T LOSE ALL X-VELOCITY
+    #ALSO TRY MINIMUM RADIUS OF CURVATURE
     return position, velocity
 
-def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, dim):
+def update_pos_boris(position, velocity, particle, B, timeStep):
+    t = (particle.charge / particle.mass) * B * 0.5 * timeStep
+    s = 2. * t / (1. + np.dot(t,t))
+    vPrime = velocity + np.cross(velocity, t)
+    vPlus = velocity + np.cross(vPrime, s)
+    position += vPlus * timeStep
+    return position, vPlus
+
+def update_pos_pressure(position, velocity, particle, B, timeStep, density, magnetPos):
+    """calculates the magnetic force on the particle and moves it
+    accordingly
+
+    .. seealso: called by :func:`calculate_trajectory`
+
+    :param position: 3D numpy array (r_x,r_y,r_z) in meters
+    :param velocity: 3D numpy array (v_x,v_y,v_z) in m/s
+    :param mass: scalar float in kg
+    :param B: magnetic field strength, scalar float in Tesla
+    :returns: the updated position and velocity (3D vectors)
+
+    """
+
+    # calculate the total force and accelerations on each body using
+    # numpy's vector cross product
+    #print(timeStep)
+    #print("Beat:")
+    #force = particle.charge * np.cross(velocity, B)
+    radR, radX, radY, radZ = stepcalc.distance(position, magnetPos)
+    radUnit = stepcalc.unit(np.array([radX,radY,radZ]))
+    magPressure = np.dot(B,B) / 2 * MU_0
+    windPressure = density * np.dot(velocity,np.dot(velocity,radUnit))
+    totPressure = magPressure + windPressure
+    force = totPressure * radUnit * 1e-15
+    accel = force / particle.mass
+    energyLoss = stepcalc.synchrotron(particle, velocity, B) * timeStep
+    position += velocity * timeStep + 0.5 * accel * timeStep ** 2
+    velocity += accel * timeStep
+    velocity -= partgen.velocityFromEnergy(energyLoss, particle.mass) * (velocity)/np.linalg.norm(velocity)
+    #print("Velocity:")
+    #print(velocity)
+
+    # FIX BY KEEPING VELOCITY AS PERP VS PARALLEL, RATHER THAN CONVERTING TO CARTESIAN, SO THAT YOU DON'T LOSE ALL X-VELOCITY
+    #ALSO TRY MINIMUM RADIUS OF CURVATURE
+    return position, velocity
+
+def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, dim, density):
     """Calculates the trajectory of the particle 
 
     .. seealso: called by :func:`calculate_trajectory`
@@ -110,12 +205,20 @@ def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, di
     hitPlanet = False
     # While the particle is inside the wall, update its position
     while -dim[0] < position[0] and position[0] < dim[0] and -dim[1] < position[1] and position[1] < dim[1] and -dim[2] < position[2] and position[2] < dim[2]:
-        B = stepcalc.magneticFieldAtPoint(magnetPos, position, mu)
-        position, velocity = update_pos(position, velocity, particle, B, stepcalc.timeStep(B, mu, position, magnetPos))
+        if position[0] == magnetPos[0]:
+            B = np.array([0,0,0])
+        else:
+            B = stepcalc.magneticFieldAtPoint(magnetPos, position, mu) + np.array([0,0,0])
+        paraVelocity = np.dot(velocity,stepcalc.unit(B))
+        timeStep = stepcalc.timeStep(B)
+        position, velocity = update_pos(position, velocity, paraVelocity, particle, B, timeStep)
+        #position, velocity = update_pos_pressure(position, velocity, particle, B, timeStep, density, magnetPos)
+        #position, velocity = update_pos_boris(position, velocity, particle, B, timeStep)
         trajectory.append(np.array(position))
-        if stepcalc.didHitPlanet(position, planet.pos, planet.rad):
+        if stepcalc.didHitPlanet(position, velocity, planet.pos, planet.rad, timeStep):
             hitPlanet = True
             break
+    print(np.array(trajectory))
 
     return np.array(trajectory), hitPlanet
 
@@ -129,7 +232,7 @@ def trajTest():
     print("Starting calculation.")
 
     # Magnetic field strength [Telsa]
-    B = -1.0e-3 
+    B = np.array([0,0,-1.0e-3])
 
     # Create lists to append a trajectory for each mass, 
     # and a list for masses
