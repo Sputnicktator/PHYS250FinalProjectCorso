@@ -44,7 +44,7 @@ def plot_trajectory(trajectories, dim, planet, magnetPos):
     ax.set_xlabel("X [meters]") 
     ax.set_ylabel("Y [meters]")
     ax.set_zlabel("Z [meters]")
-    ax.set_title("Electron Trajectories")
+    ax.set_title("Proton Trajectories")
 
     # for each trajectory in our array of trajectories, add a plot
     for i in range(len(trajectories)):
@@ -133,6 +133,7 @@ def update_pos(position, velocity, paraVelocity, particle, B, timeStep):
     #print(delPos)
     #velocity = delVelo
     velocity -= partgen.velocityFromEnergy(energyLoss, particle.mass) * (velocity)/np.linalg.norm(velocity)
+    #print(position)
     #print("Velocity:")
     #print(velocity)
     
@@ -205,10 +206,7 @@ def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, di
     hitPlanet = False
     # While the particle is inside the wall, update its position
     while -dim[0] < position[0] and position[0] < dim[0] and -dim[1] < position[1] and position[1] < dim[1] and -dim[2] < position[2] and position[2] < dim[2]:
-        if position[0] == magnetPos[0]:
-            B = np.array([0,0,0])
-        else:
-            B = stepcalc.magneticFieldAtPoint(magnetPos, position, mu) + np.array([0,0,0])
+        B = stepcalc.magneticFieldAtPoint(magnetPos, position, mu) + planet.iMagField
         paraVelocity = np.dot(velocity,stepcalc.unit(B))
         timeStep = stepcalc.timeStep(B)
         position, velocity = update_pos(position, velocity, paraVelocity, particle, B, timeStep)
@@ -218,7 +216,7 @@ def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, di
         if stepcalc.didHitPlanet(position, velocity, planet.pos, planet.rad, timeStep):
             hitPlanet = True
             break
-    print(np.array(trajectory))
+    #print(np.array(trajectory))
 
     return np.array(trajectory), hitPlanet
 

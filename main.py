@@ -1,12 +1,21 @@
 C = 2.998e8 #m/s
 TIME_CONST = 0.00001 #s T
 TIME_BOUND = 1e-5 #T
+B_0 = 1e-9 #T
+solRotVel = 2.7e-6 #rad/s
+solRad = 6.9551e8 #m
+solWindRadVelocity = 4e6 #m/s
+alfRad = 50 * solRad #m
 import numpy as np
 MU_0 = np.pi * 4e-7 #H/m
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from scipy import stats
 import particlegenerator as partgen
 import stepcalculations as stepcalc
 import electronTrajectory as etraj
+import os
+import sys
 
 class Particle:
     '''
@@ -27,6 +36,8 @@ class Planet:
         self.name = name
         self.rad = rad
         self.semimaxis = semiMAxis
+        self.solWindVelocity = np.array([solWindRadVelocity, -solRotVel * alfRad * (alfRad / semiMAxis), 0])
+        self.iMagField = np.array([B_0 * ((1.496e8 / semiMAxis) ** 2), -B_0 * (solRotVel * 1.496e8 / solWindRadVelocity) * (1.496e8 / semiMAxis), 0])
     def __str__(self):
         return '%s: Radius %f; Semi-Major Axis %f' % (self.name, self.rad, self.semimaxis)
 
@@ -34,7 +45,6 @@ E = Particle("Electron", 9.10938e-31, -1.60218e-19) #kg, C
 P = Particle("Proton", 1.6726219e-27, 1.60218e-19) #kg, C
 A = Particle("Alpha", 6.64465723e-27, 3.20436e-19) #kg, C
 MARS = Planet("Mars", 3.3895e6, 2.279e11) #m, m
-SUN = Planet("Sun", 6.9551e8, 0) #m, m
 
 def testFunctions():
     fig, (ax1, ax2, ax3) = plt.subplots(ncols = 3)
@@ -72,42 +82,64 @@ def testFunctions():
     '''
     plt.show()
 
-def basicSim():
-    nParticles = 10
-    particle = P
+def simulation(mu,nParticles,particle,planet):
     halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
-    MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
-    magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
-    def distribution(t):
-        return 1
-    minEnergy = 500
-    maxEnergy = 100000000
+    planet.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
+    magnetPos = np.array([planet.pos[0]-1.082311e9, 0, 0])
     posRanges = []
-    posRanges.append([-MARS.rad,MARS.rad])
-    posRanges.append([-MARS.rad,MARS.rad])
-    #posRanges.append([-halfSimDim[1],halfSimDim[1]])
-    #posRanges.append([-halfSimDim[2],halfSimDim[2]])
-    mu = 4e7
+    posRanges.append([-planet.rad,planet.rad])
+    posRanges.append([-planet.rad,planet.rad])
     nDensity = 4 * 10000
     density = particle.mass * nDensity
     trajectories = []
+    totHitPlanet = 0
     for i in range(nParticles):
-        energy, position = partgen.windParticleGenerator(distribution, minEnergy, maxEnergy, posRanges)
-        positionEnd = partgen.windParticleGenerator(distribution, minEnergy, maxEnergy, posRanges)[1]
-        partPosition = np.array([-halfSimDim[0] + 1, position[0], position[1]])
-        partPositionEnd = np.array([MARS.pos[0],positionEnd[0],positionEnd[1]])
-        #partPosition = np.array([position[0], -halfSimDim[1] + 1, position[1]]) + magnetPos
-        #partPositionEnd = np.array([positionEnd[0],MARS.pos[1],positionEnd[1]]) + magnetPos
-        velocityDir = stepcalc.unit(partPositionEnd - partPosition)
-        velocity = 750000. * velocityDir
-        #velocity = partgen.velocityFromEnergy(energy, particle.mass) * velocityDir
-        #velocity = 750000. * np.array([1,0,0])
-        trajectory, hitPlanet = etraj.calculate_trajectory(partPosition, velocity, particle, magnetPos, mu, MARS, halfSimDim, density)
+        positionStart = partgen.windParticleGenerator(posRanges)
+        positionEnd = partgen.windParticleGenerator(posRanges)
+        partPositionEnd = np.array([planet.pos[0],positionEnd[0],positionEnd[1]])
+        partPositionStart = partPositionEnd - planet.solWindVelocity * (halfSimDim[1] / np.abs(planet.solWindVelocity[1])) * 0.8
+        partPositionStart += np.array([0, positionStart[0], positionStart[1]])
+        velocity = planet.solWindVelocity
+        trajectory, hitPlanet = etraj.calculate_trajectory(partPositionStart, velocity, particle, magnetPos, mu, planet, halfSimDim, density)
         trajectories.append(np.array(trajectory))
-        print("Done")
+        if hitPlanet:
+            totHitPlanet += 1
+        print("Step; mu = %d" %mu)
     trajectories = np.array(trajectories)
-    etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos)
-        
+    return trajectories, totHitPlanet
+    #etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos)
+
+def strengthTest(nParticles, nTests, particle, planet):
+    mu = np.arange(1,10,2) * 1e7
+    mu = np.append(mu, np.arange(1,10,2) * 1e8)
+    mu = np.append(mu, np.arange(1,6,2) * 1e9)
+    hitRatio = np.zeros((nTests, mu.size))
+    for n in range(nTests):
+        for m in range(mu.size):
+            trajectories, totHitPlanet = simulation(mu[m],nParticles,particle,planet)
+            hitRatio[n,m] = totHitPlanet / nParticles
+    hitError = stats.sem(hitRatio,axis=0)
+    hitRatio = np.average(hitRatio,axis=0)
+    np.savez(os.path.join(sys.path[0], "strengthData.npz"), mu=mu, hitRatio=hitRatio, hitError=hitError)
+
+def strengthPlot(file):
+    mu = file['mu']
+    hitRatio = file['hitRatio']
+    hitError = file['hitError']
+    x = np.linspace(mu[0],mu[-1],num=int(mu[-1]/mu[0]),endpoint=True)
+    fit = interp1d(mu, hitRatio, kind='slinear')
+    fig = plt.figure(facecolor = 'w')
+    ax = fig.add_subplot(111)
+    ax.errorbar(mu,hitRatio,yerr=hitError,marker = 'o',linestyle = 'None',color = 'indigo', label = 'Data')
+    ax.plot(x,fit(x),color = 'fuchsia', label = 'Fit')
+    ax.set_xscale('log')
+    ax.set_title("Inefficiency of Dipole Shield")
+    ax.set_xlabel("Magnetic Moment (" + r'$\frac{\mu_{0}}{4\pi}$' + ")")
+    ax.set_ylabel("Hit Rate (" + r'$\frac{n_{hit}}{n_{particles}}$' + ")")
+    ax.legend()
+    plt.show()
 
 if __name__ == "__main__":
-    basicSim()
+    strengthTest(50, 5, P, MARS)
+    file = np.load("strengthData.npz")
+    strengthPlot(file)
