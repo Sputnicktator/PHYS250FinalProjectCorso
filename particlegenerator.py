@@ -1,22 +1,17 @@
 import numpy as np
 from main import C
 
-def windParticleGenerator(posRanges):
+def windParticleGenerator(planet, halfSimDim):
     '''
-    Energy in eV.
+    Uses an accept/reject method to get initial point.
     '''
-    #t = np.linspace(minEne, maxEne, int(maxEne - minEne))
-    #eneProb = eneDist(t)
-    #maxProb = np.amax(eneProb)
-    #while True:
-    #    energy = np.random.uniform(minEne,maxEne)
-    #    probability = eneDist(energy) / maxProb
-    #    probTest = np.random.uniform()
-    #    if probTest < probability:
-    #        break
-    position = []
-    for range in posRanges:
-        position.append(np.random.uniform(range[0],range[1]))
+    while True:
+        y = np.random.uniform(-planet.rad,planet.rad)
+        z = np.random.uniform(-planet.rad,planet.rad)
+        if np.sqrt(y**2 + z**2) < planet.rad:
+            break
+    position = np.array([planet.pos[0],y,z])
+    position -= planet.solWindVelocity * (halfSimDim[1] / np.abs(planet.solWindVelocity[1])) * 0.8
     return position
 
 def velocityFromEnergy(energy, mass):

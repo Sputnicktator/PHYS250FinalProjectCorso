@@ -83,21 +83,14 @@ def testFunctions():
     plt.show()
 
 def simulation(mu,nParticles,particle,planet,halfSimDim,magnetPos):
-    posRanges = []
-    posRanges.append([-planet.rad,planet.rad])
-    posRanges.append([-planet.rad,planet.rad])
     nDensity = 4 * 10000
     density = particle.mass * nDensity
     trajectories = []
     totHitPlanet = 0
     for i in range(nParticles):
-        positionStart = partgen.windParticleGenerator(posRanges)
-        positionEnd = partgen.windParticleGenerator(posRanges)
-        partPositionEnd = np.array([planet.pos[0],positionEnd[0],positionEnd[1]])
-        partPositionStart = partPositionEnd - planet.solWindVelocity * (halfSimDim[1] / np.abs(planet.solWindVelocity[1])) * 0.8
-        partPositionStart += np.array([0, positionStart[0], positionStart[1]])
+        position = partgen.windParticleGenerator(planet, halfSimDim)
         velocity = planet.solWindVelocity
-        trajectory, hitPlanet = etraj.calculate_trajectory(partPositionStart, velocity, particle, magnetPos, mu, planet, halfSimDim, density)
+        trajectory, hitPlanet = etraj.calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, halfSimDim, density)
         trajectories.append(np.array(trajectory))
         if hitPlanet:
             totHitPlanet += 1
@@ -140,7 +133,7 @@ def strengthPlot(file, fitting = True):
         ax.errorbar(mu,hitRatio,yerr=hitError,marker = 'o',color = 'indigo', label = 'Data')
     ax.set_xscale('log')
     ax.set_title("Inefficiency of Dipole Shield")
-    ax.set_xlabel("Magnetic Moment (" + r'$\frac{\mu_{0}}{4\pi}$' + ")")
+    ax.set_xlabel("Magnetic Moment (" + r'$Am^2\frac{\mu_{0}}{4\pi}$' + ")")
     ax.set_ylabel("Hit Rate (" + r'$\frac{n_{hit}}{n_{particles}}$' + ")")
     ax.legend()
     plt.show()
@@ -149,8 +142,8 @@ if __name__ == "__main__":
     halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
     MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
     magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
-    trajectories = simulation(1e9,25,P,MARS,halfSimDim,magnetPos)[0]
-    etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos, P,titleLabel=r"$\mu=1e9$")
+    trajectories = simulation(6e8,25,P,MARS,halfSimDim,magnetPos)[0]
+    etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos, P,titleLabel=r"$\mu=6e8$")
     #strengthTest(100, 5, P, MARS)
-    #file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
-    #strengthPlot(file)
+    #file = np.load(os.path.join(sys.path[0], "strengthData_03.npz"))
+    strengthPlot(file)
