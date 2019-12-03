@@ -37,7 +37,7 @@ def didHitPlanet(ptCoord, velocity, planetCoord, planetR, timeStep):
         if pt1 > velocitySep and pt1 < 0:
             return True
         pt2 = -np.dot(velUnit, radVec) + np.sqrt(det)
-        if pt2 < velocitySep and pt2 < 0:
+        if pt2 > velocitySep and pt2 < 0:
             return True
 
 def timeStep(B):
