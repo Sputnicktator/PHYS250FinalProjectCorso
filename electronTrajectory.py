@@ -20,7 +20,7 @@ import particlegenerator as partgen
 #BOX_Y = 1
 #BOX_Z = 1
 
-def plot_trajectory(trajectories, dim, planet, magnetPos):
+def plot_trajectory(trajectories, dim, planet, magnetPos, particle, titleLabel=""):
     """Creates a matplotlib plot and plots a list of trajectories labeled
     by a list of masses.
     
@@ -41,10 +41,13 @@ def plot_trajectory(trajectories, dim, planet, magnetPos):
     ax = plt.add_subplot(111, projection = '3d')
 
     # set the title and axis labels
-    ax.set_xlabel("X [meters]") 
-    ax.set_ylabel("Y [meters]")
-    ax.set_zlabel("Z [meters]")
-    ax.set_title("Proton Trajectories")
+    ax.set_xlabel("X (" + r"m" + ")")
+    ax.set_ylabel("Y (" + r"m" + ")")
+    ax.set_zlabel("Z (" + r"m" + ")")
+    title = particle.name + " Trajectories"
+    if titleLabel:
+        title += ": %s" %titleLabel
+    ax.set_title(title)
 
     # for each trajectory in our array of trajectories, add a plot
     for i in range(len(trajectories)):
@@ -65,7 +68,8 @@ def plot_trajectory(trajectories, dim, planet, magnetPos):
     pyplot.xlim(-dim[0], dim[0])
     pyplot.ylim(-dim[1], dim[1])
     ax.set_zlim(-dim[2], dim[2])
-
+    
+    ax.view_init(30, 225)
     # Draw a legend and save our plot
     pyplot.show()
     print("Saving plot to %s." % IMAGE_PATH)

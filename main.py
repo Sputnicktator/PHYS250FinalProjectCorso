@@ -82,10 +82,7 @@ def testFunctions():
     '''
     plt.show()
 
-def simulation(mu,nParticles,particle,planet):
-    halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
-    planet.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
-    magnetPos = np.array([planet.pos[0]-1.082311e9, 0, 0])
+def simulation(mu,nParticles,particle,planet,halfSimDim,magnetPos):
     posRanges = []
     posRanges.append([-planet.rad,planet.rad])
     posRanges.append([-planet.rad,planet.rad])
@@ -110,13 +107,16 @@ def simulation(mu,nParticles,particle,planet):
     #etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos)
 
 def strengthTest(nParticles, nTests, particle, planet):
+    halfSimDim = np.array([planet.semimaxis / 50, planet.rad * 10, planet.rad * 10])
+    planet.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
+    magnetPos = np.array([planet.pos[0]-1.082311e9, 0, 0])
     mu = np.arange(1,10,2) * 1e7
     mu = np.append(mu, np.arange(1,10,2) * 1e8)
     mu = np.append(mu, np.arange(1,6,2) * 1e9)
     hitRatio = np.zeros((nTests, mu.size))
     for n in range(nTests):
         for m in range(mu.size):
-            trajectories, totHitPlanet = simulation(mu[m],nParticles,particle,planet)
+            trajectories, totHitPlanet = simulation(mu[m],nParticles,particle,planet,halfSimDim,magnetPos)
             hitRatio[n,m] = totHitPlanet / nParticles
     hitError = stats.sem(hitRatio,axis=0)
     print(hitError)
@@ -146,6 +146,11 @@ def strengthPlot(file, fitting = True):
     plt.show()
 
 if __name__ == "__main__":
-    strengthTest(100, 5, P, MARS)
-    file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
-    strengthPlot(file)
+    halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
+    MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
+    magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
+    trajectories = simulation(1e9,25,P,MARS,halfSimDim,magnetPos)[0]
+    etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos, P,titleLabel=r"$\mu=1e9$")
+    #strengthTest(100, 5, P, MARS)
+    #file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
+    #strengthPlot(file)
