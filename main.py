@@ -146,6 +146,6 @@ def strengthPlot(file, fitting = True):
     plt.show()
 
 if __name__ == "__main__":
-    strengthTest(5, 4, P, MARS)
+    strengthTest(100, 5, P, MARS)
     file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
     strengthPlot(file)
