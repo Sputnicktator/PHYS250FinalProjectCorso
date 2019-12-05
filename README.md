@@ -1,6 +1,21 @@
 # PHYS250FinalProjectCorso
-Simulations of the Martian dipole magnetic shield made in Python.
-The main.py file contains the main testing code.
-stepcalculations.py contains functions related to calculations that need to be made on a step-by-step basis with the particle simulator.
-particlegenerator.py is in charge of creating the solar wind particles.
-electronTrajectory.py is retrofitted code from an example from the UChicago physics directory, which contains the actual trajectory simulation and visualization tools.
+This project is intended to test the feasibility of using a magnetic dipole shield at Mars's L1 point to protect the planet from the solar wind, in hopes to restore its atmosphere along with water to the planet. The method I use is Monte Carlo simulation, which is questionable for producing accurate results without adequately simulating the solar wind as a plasma using methods such as particle-in-cell or magnetohydrodynamic simulations. In the presence of a non-uniform magnetic field, the scale of those projects can be quite complicated and out of the scale of the course, so while particle simulation may miss part of the picture, it does a reasonable and reliable job of establishing a lower bound to the magnetic dipole strength.
+
+## main.py
+"This is the main file for running the simulation. It contains global variable definitions, functions for controlling the simulations, as well as output/plotting handling. This file also contains the main code for starting tests, which can be tinkered with by modifying the main() function parameter."
+
+## stepcalculations.py
+"This file contains all useful code for calculations that are performed on a step-by-step basis in the simulation."
+
+## particlegenerator.py
+"This file contains all useful code for particle generation. Nowadays it's only one useful function, but in the olden days there were multiple used for it, so the fact that this is a separate file is a little vestigial."
+
+## electronTrajectory.py
+"This file originated from David Miller's "SampleExercises" GitHub repository as a file for tracking electron trajectories. While still retaining its old name, it has changed a lot since I first grabbed that file, generalizing it to other particles, adjustable magnetic fields, etc. Most importantly, it uses a different tactic for calculating the motion caused by the magnetic field. In fact, it technically can use 3, but only one is active at any given time."
+Note that this method showcases three methods for running the simulation:
+#### 1. Using gyroradii:
+"A rather unique method for calculating the motion of the particles through a magnetic field. Essentially, the difficulty with this simulation is that the particles experience the large scale deflection, but this deflection can occur in part due to it getting caught up orbiting around magnetic field lines by the dipole, with rather small orbits. To try to balance the two scales, I devised this method for the steps in the simulation. At each step the gyroradius is determined, and velocity perpendicular to the magnetic field is made into an angular velocity while parallel velocity is untouched. Then motion is just derived as motion around the gyroradius. Why is this beneficial? If a particle has a very short gyroradius with a rapid revolution frequency, then instead of the simulation interpreting it as a strong acceleration in one direction and letting the particle overshoot, the exact distance around the circle covered by the particle in the time step is determined, and its velocity follows."
+#### 2. Using the Boris Method:
+"The Boris method is commonly used in magnetic field simulation, and can be useful in Particle-in-Cell simulations. To maintain accuracy of the orbits, the motion of the particle is split into two steps, which allows the particle to rotate in the middle of the step and maintain a proper orbit shape assuming a sufficiently small time step. Not the official method used in the simulation, but produces very similar to results to what I've found with my own method, which supports the validity of my test."
+#### 3. Using magnetic/solar wind pressure:
+"A very different (and one with wildly different results) method for testing the effect of the dipole, by treating the motion as a fight between the radial pressure imposed by the magnetic field, and the velocity-directed pressure caused by the solar wind. It's an attempt to bridge the gap between the particle simulation and a magnetohydrodynamic one, mainly because balancing these forces can give a decent approximation for the distance to the magnetopause between the planet and the Sun. But, I feel least comfortable with this method, mainly because finding the impact of this pressure contention on the motion of the particle requires converting the pressure into a force, which in turn requires a pretty clear surface area to work over, and that is rather uncertain when it comes to these particles."
