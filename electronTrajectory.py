@@ -175,7 +175,7 @@ def update_pos_pressure(position, velocity, particle, B, timeStep, density, magn
     velocity -= partgen.velocityFromEnergy(energyLoss, particle.mass) * (velocity)/np.linalg.norm(velocity)
     return position, velocity
 
-def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, dim, density):
+def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, dim, density, method = 1):
     '''
     For a single particle, runs a simulation until it either is ejected out of the simulation dimensions or it collides with Mars, at which point it returns True on a flag to indicate a successful hit. Parameters:
     - position, the current position of the particle
@@ -203,10 +203,19 @@ def calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, di
         #Based off of that field calculation, derive the time step
         timeStep = stepcalc.timeStep(B)
         
-        #Three methods for obtaining the position/velocity updates. Explained in detail above; update_pos is default. If you want to glance at the other ones, you can switch which is uncommented
-        position, velocity = update_pos(position, velocity, particle, B, timeStep)
-        #position, velocity = update_pos_pressure(position, velocity, particle, B, timeStep, density, magnetPos)
-        #position, velocity = update_pos_boris(position, velocity, particle, B, timeStep)
+        #Three methods for obtaining the position/velocity updates. Explained in detail above; update_pos is default. If you want to glance at the other ones, you can switch which method is in the parameter
+        
+        #Method 1: Using gyroradii:
+        if method == 1:
+            position, velocity = update_pos(position, velocity, particle, B, timeStep)
+        
+        #Method 2: Using the Boris Method:
+        elif method == 2:
+            position, velocity = update_pos_boris(position, velocity, particle, B, timeStep)
+        
+        #Method 3: Using magnetic/solar wind pressure:
+        elif method == 3:
+            position, velocity = update_pos_pressure(position, velocity, particle, B, timeStep, density, magnetPos)
         
         #Store trajectory and check whether the particle hit the planet
         trajectory.append(np.array(position))

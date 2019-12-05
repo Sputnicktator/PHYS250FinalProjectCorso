@@ -1,3 +1,11 @@
+############################################################
+# This is the main file for running the simulation. It contains
+# global variable definitions, functions for controlling
+# the simulations, as well as output/plotting handling.
+# This file also contains the main code for starting tests,
+# which can be tinkered with by modifying the main()
+# function parameter.
+############################################################
 C = 2.998e8 #m/s
 TIME_CONST = 0.00001 #s T
 TIME_BOUND = 1e-5 #T
@@ -69,7 +77,7 @@ def testFunctions():
     ax.set_ylabel("z (m)")
     plt.show()
 
-def simulation(mu,nParticles,particle,planet,halfSimDim,magnetPos):
+def simulation(mu, nParticles, particle, planet, halfSimDim, magnetPos, method = 1):
     '''
     This function will run a simulation for nParticles number of particles. The function takes additionally as parameters:
     - mu, the magnetic moment of the dipole
@@ -89,7 +97,7 @@ def simulation(mu,nParticles,particle,planet,halfSimDim,magnetPos):
         position = partgen.windParticleGenerator(planet, halfSimDim)
         velocity = planet.solWindVelocity
         #Run test on particle
-        trajectory, hitPlanet = etraj.calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, halfSimDim, density)
+        trajectory, hitPlanet = etraj.calculate_trajectory(position, velocity, particle, magnetPos, mu, planet, halfSimDim, density, method = method)
         #Store test
         trajectories.append(np.array(trajectory))
         if hitPlanet: #If the planet were hit, record that
@@ -98,7 +106,7 @@ def simulation(mu,nParticles,particle,planet,halfSimDim,magnetPos):
     trajectories = np.array(trajectories) #Store full set of runs
     return trajectories, totHitPlanet
 
-def strengthTest(nParticles, nTests, particle, planet):
+def strengthTest(nParticles, nTests, particle, planet, method = 1):
     '''
     Runs a batch of simulations that varies the strength of the magnetic dipole, and stores the inefficiency for each dipole moment (the ratio of successful hits to the planet to total particles fired). Takes as parameters:
     - nParticles, the number of particles for each magnetic moment test
@@ -117,7 +125,7 @@ def strengthTest(nParticles, nTests, particle, planet):
     hitRatio = np.zeros((nTests, mu.size))
     for n in range(nTests):
         for m in range(mu.size):
-            trajectories, totHitPlanet = simulation(mu[m],nParticles,particle,planet,halfSimDim,magnetPos)
+            trajectories, totHitPlanet = simulation(mu[m], nParticles, particle, planet, halfSimDim, magnetPos, method = method)
             hitRatio[n,m] = totHitPlanet / nParticles
     hitError = stats.sem(hitRatio,axis=0)
     print(hitError)
@@ -151,26 +159,35 @@ def strengthPlot(file, fitting = True):
     ax.legend()
     plt.show()
 
-if __name__ == "__main__":
-    #I have four protocols below for you to play with. If you wish to try one, switch which is uncommented
-    
+def main(protocol = 1, method = 1):
+    '''
+    The main code for running tests. There are a number of useful things that can be done, so it is divided into "protocols," which you can control using the protocol parameter.
+    '''
     ##Test function(s), currently the function is set only to plot the magnetic field of the dipole, but that is still something you can check out if you want
-    #testFunctions()
+    if protocol == 1:
+        testFunctions()
     
     ##Trajectory plotter, runs a set of basic simulations to pump out a 3D graph of trajectories
-    #halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
-    #MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
-    #magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
-    #trajectories = simulation(6e8,25,P,MARS,halfSimDim,magnetPos)[0]
-    #etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos, P,titleLabel=r"$\mu=6e8$")
+    elif protocol == 2:
+        halfSimDim = np.array([MARS.semimaxis / 50, MARS.rad * 10, MARS.rad * 10])
+        MARS.pos = np.array([halfSimDim[0] * 0.95, 0, 0])
+        magnetPos = np.array([MARS.pos[0]-1.082311e9, 0, 0])
+        trajectories = simulation(6e8, 25, P, MARS, halfSimDim, magnetPos, method = method)[0]
+        etraj.plot_trajectory(trajectories, halfSimDim, MARS, magnetPos, P,titleLabel=r"$\mu=6e8$")
     
     ##Short strength test, runs many sets of simulations over a spread of magnetic moments to produce an inefficiency plot for the shield. Poor statistics but fast
-    strengthTest(5, 2, P, MARS)
-    file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
-    strengthPlot(file)
+    elif protocol == 3:
+        strengthTest(5, 2, P, MARS, method = method)
+        file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
+        strengthPlot(file)
     
     ##Long strength test, runs many sets of simulations over a spread of magnetic moments to produce an inefficiency plot for the shield. Good statistics but very slow
-    #strengthTest(50, 5, P, MARS)
-    #file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
-    #strengthPlot(file)
+    elif protocol == 4:
+        strengthTest(100, 5, P, MARS, method = method)
+        file = np.load(os.path.join(sys.path[0], "strengthData.npz"))
+        strengthPlot(file)
+if __name__ == "__main__":
+    main(protocol = 4, method = 2)
+    
+    
 

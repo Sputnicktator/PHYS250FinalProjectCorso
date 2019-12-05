@@ -1,3 +1,9 @@
+############################################################
+# This file contains all useful code for particle generation.
+# Nowadays it's only one useful function, but in the olden
+# days there were multiple used for it, so the fact that
+# this is a separate file is a little vestigial.
+############################################################
 import numpy as np
 from main import C
 

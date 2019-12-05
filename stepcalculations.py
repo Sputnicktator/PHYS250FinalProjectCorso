@@ -1,3 +1,7 @@
+############################################################
+# This file contains all useful code for calculations that
+# are performed on a step-by-step basis in the simulation.
+############################################################
 import numpy as np
 from main import TIME_CONST
 from main import TIME_BOUND
